@@ -1,3 +1,0 @@
-/home/kaijin/mymuduo/build/CMakeFiles/mymuduo.dir
-/home/kaijin/mymuduo/build/CMakeFiles/edit_cache.dir
-/home/kaijin/mymuduo/build/CMakeFiles/rebuild_cache.dir
