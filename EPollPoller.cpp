@@ -71,7 +71,7 @@ void EPollPoller::updateChannel(Channel* channel)
     // 打印channel的日志信息
     LOG_INFO("func=%s => fd = %d events = %d, index=%d\n", __func__, channel->fd(), channel->events(), index);
     // channel不在epoll树上
-    if (index == kNew || kDeleted)
+    if (index == kNew || index == kDeleted)
     {
         // 是一个全新的channel，不在poller的map上
         if (index == kNew)
@@ -98,6 +98,7 @@ void EPollPoller::updateChannel(Channel* channel)
         }
         else
         {
+            // channel的更新操作
             update(EPOLL_CTL_MOD, channel);
         }
     }
@@ -105,9 +106,34 @@ void EPollPoller::updateChannel(Channel* channel)
 }
 
 void EPollPoller::removeChannel(Channel* channel)
-{
+{    
+    // 将channel从poller的map上删除
+    int fd = channel->fd();
+    channels_.erase(fd);
+    // 日志打印
+    LOG_INFO("func=%s, fd=%d\n", __func__, fd);
+    // 将channel从epoll树上删除
+    int index = channel->index();
+    if (index == kAdded)
+    {
+        update(EPOLL_CTL_DEL, channel);
+    }
+    channel->set_index(kNew);
 
 }
+
+void EPollPoller::fillActiveChannels(int numEvents, ChannelList* activeChannels) const
+{
+    for (int i = 0; i < numEvents; i++)
+    {
+        Channel* channel = static_cast<Channel*>(epollEvents_[i].data.ptr);
+        // 保存channel返回的事件类型
+        channel->set_revents(channel->events());
+        activeChannels->push_back(channel);
+    }
+    
+}
+
 
 Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
 {
@@ -118,21 +144,33 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
     int saveError = errno;
     Timestamp now(Timestamp::now());
 
+    // 有监听事件响应，将响应的事件通过activeChannels传出
     if (numEvents > 0)
     {
         LOG_INFO("%d events happend \n", numEvents);
-        
+        fillActiveChannels(numEvents, activeChannels);
+        if (numEvents == epollEvents_.size())
+        {
+            epollEvents_.resize(numEvents * 2);
+        }
+    }
+    // 在timeoutMs秒内，没有监听的事件响应
+    else if (numEvents == 0)
+    {
+        LOG_DEBUG("%s timeout \n", __func__);
+    }
+    // epoll_wait阻塞打断
+    else
+    {
+        // 不是被系统信号中断的都要打印错误信息
+        if (saveError != EINTR)
+        {
+            LOG_ERROR("EPollPoller::poll() error，errno=%d\n", saveError);
+        }
     }
 
-    
     return now;
 }
 
-void EPollPoller::fillActiveChannels(int numEvents, ChannelList* activeChannels) const
-{
-    for (int i = 0; i < numEvents; i++)
-    {
-    }
-    
-}
+
 

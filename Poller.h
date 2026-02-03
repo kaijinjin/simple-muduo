@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 
 class Channel;
@@ -27,7 +28,7 @@ public:
     bool hasChannel(Channel* channel) const;
 
     // 提供获取具体实现的IO复用机制
-    static Poller* newDefaultPoller(EventLoop* loop);
+    static std::unique_ptr<Poller> newDefaultPoller(EventLoop* loop);
 protected:
     using ChannelMap = std::unordered_map<int, Channel*>;
     // 持有channel对象，但不对channel的生命周期进行管理
