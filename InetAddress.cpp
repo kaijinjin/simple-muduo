@@ -12,7 +12,6 @@ InetAddress::InetAddress(std::string ip, uint16_t port)
     addr_.sin_family = AF_INET;
     // htons：主机字节序转网络字节序
     addr_.sin_port = htons(port);
-    char buf[16] = {0};
     // 使用inet_pton替代inet_addr，inet_addr已经被标记废弃
     inet_pton(AF_INET, ip.c_str(), &(addr_.sin_addr));
 }

@@ -39,7 +39,7 @@ void Thread::start()
     sem_t sem;
     sem_init(&sem, false, 0);
 
-    // 开启线程
+    // 开启线程：持有Thread对象作为属性的EventLoopThread时，如果没有设置线程分离就不能多次调用startLoop函数：在这里触发operator=(&&)直接std::__terminate();
     thread_ = std::shared_ptr<std::thread>(new std::thread([&](){
         // 获取线程tid
         tid_ = CurrentThread::tid();
