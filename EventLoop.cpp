@@ -61,7 +61,17 @@ EventLoop::EventLoop()
 
 EventLoop::~EventLoop()
 {
-    // 从epoll树上删除
+    /*
+    为什么要先disableAll在remove？
+    1. 某个channel的数据包到达网卡，TCP协议栈处理，设置socket为可读
+    2. 某个channel事件被加入epoll的就绪队列               ← 这一步在内核中
+    3. 应用程序调用 channel->remove()删除某个channel      ← 这一步在应用层
+    4. epoll_ctl(EPOLL_CTL_DEL) 从监听树移除某个channel
+    5. 应用程序调用 epoll_wait()
+    6. epoll_wait() 返回就绪事件             ← 包括第2步加入的事件！
+    7. epoll_wait中返回了已经被删除的channel，对这个channel进行操作的行为是未定义的，可能导致崩溃
+    */
+
     wakeupChannel_->disableAll();
     // 从poller的map上删除，如果还未从epoll树上删除就执行删除操作，并且将channle状态设置成kNew
     wakeupChannel_->remove();

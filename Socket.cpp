@@ -16,7 +16,7 @@ Socket::~Socket()
 
 void Socket::bindAddress(const InetAddress& localaddr)
 {
-    if (0 != bind(sockfd_, (sockaddr*)localaddr.getSockAddr(), sizeof(sockaddr)))
+    if (0 != bind(sockfd_, (sockaddr*)localaddr.getSockAddr(), sizeof(sockaddr_in)))
     {
         LOG_FATAL("绑定 sockfd：%d失败，errno：%d\n", sockfd_, errno);
     }

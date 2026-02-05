@@ -17,8 +17,8 @@ public:
     ~Acceptor();
 
     void setNewConnectionCallback(const NewConnectionCallback& cb) { newConnectionCallback_ = cb; }
-    bool listinning() const { return listenning_; }
-    void listen();
+    bool listenning() const { return listenning_; }
+    void listenFd();
 private:
     void handleRead();
 
