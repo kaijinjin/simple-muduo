@@ -14,7 +14,7 @@ class EventLoopThreadPool : private noncopyable, private nonmoveable
 {
 public:
     using ThreadInitCallback = std::function<void(EventLoop*)>;
-    EventLoopThreadPool(EventLoop* baasLoop, const std::string& name);
+    EventLoopThreadPool(EventLoop* baseLoop, const std::string& name);
     ~EventLoopThreadPool();
 
     void setThreadNum(int numThreads) { numThreads_ = numThreads; }

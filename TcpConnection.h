@@ -87,5 +87,5 @@ private:
     size_t highWaterMark_;
 
     Buffer inputBuffer_;
-    Buffer ouputBuffer_;
+    Buffer outputBuffer_;
 };

@@ -24,7 +24,7 @@ TcpConnection::TcpConnection(EventLoop* eventLoop,
     , state_(StateE::kConnecting)
     , reading_(true)
     , socket_(std::make_unique<Socket>(sockfd))
-    , channel_(std::make_unique<Channel>(eventLoop_))
+    , channel_(std::make_unique<Channel>(eventLoop_, sockfd))
     , localAddr_(localAddr)
     , peerAddr_(peerAddr)
     , highWaterMark_(64*1024*1024)      // 64M
@@ -41,7 +41,7 @@ TcpConnection::TcpConnection(EventLoop* eventLoop,
 
 TcpConnection::~TcpConnection()
 {
-    LOG_INFO("TCP链接销毁%s fd=%d 链接状态：%d\n", name_.c_str(), socket_->fd(), state_);
+    LOG_INFO("TCP链接销毁%s fd=%d 链接状态：%d\n", name_.c_str(), socket_->fd(), state_.load());
 }
 
 void TcpConnection::send(const std::string& buf)
@@ -84,7 +84,7 @@ void TcpConnection::sendInLoop(const char* data, size_t len)
     }
 
     // 没有监听写操作，并且发送缓冲区没有数据要发送，说明这个链接是第一次发送数据，或者说上次发送数据没有数据残留在发送缓冲区
-    if (!channel_->isWriting() && ouputBuffer_.readableBytes() == 0)
+    if (!channel_->isWriting() && outputBuffer_.readableBytes() == 0)
     {
         nwrote = write(channel_->fd(), data, len);
         if (nwrote >= 0)
@@ -138,14 +138,14 @@ void TcpConnection::sendInLoop(const char* data, size_t len)
     // 数据一次没发完，还有一部分数据需要保存到缓冲区，需要监听写事件，等待下次发送
     if (!faultError && remaining > 0)
     {
-        size_t oldLen = ouputBuffer_.readableBytes();
+        size_t oldLen = outputBuffer_.readableBytes();
         // 高水位检查：缓冲区数据已经很多，这次未发送的加上缓冲区的已经大于64M并且存在回调函数，就进行回调操作
         if (oldLen + remaining >= highWaterMark_ && oldLen < highWaterMark_ && highWaterMarkCallback_)
         {
             eventLoop_->queueInLoop(std::bind(highWaterMarkCallback_, shared_from_this(), oldLen + remaining));
         }
         // 将剩余数据添加到缓冲区
-        ouputBuffer_.append(data + nwrote, remaining);
+        outputBuffer_.append(data + nwrote, remaining);
         if (!channel_->isWriting())
         {
             channel_->enableWriting();
@@ -235,12 +235,12 @@ void TcpConnection::handleWrite()
     if (channel_->isWriting())
     {
         int savedErrno = 0;
-        ssize_t n = ouputBuffer_.writeFd(channel_->fd(), &savedErrno);
+        ssize_t n = outputBuffer_.writeFd(channel_->fd(), &savedErrno);
         if (n > 0)
         {
-            ouputBuffer_.retrieve(n);
+            outputBuffer_.retrieve(n);
             // 发送缓冲区中所有数据都发完了
-            if (ouputBuffer_.readableBytes() == 0)
+            if (outputBuffer_.readableBytes() == 0)
             {
                 // 让epoll停止监听写，因为没有数据要发送了
                 channel_->disableWriting();
@@ -271,7 +271,7 @@ void TcpConnection::handleWrite()
 // 客户端close，服务端接收到了fin：poller => channel::closeCallback => TcpConnection::handleClose
 void TcpConnection::handleClose()
 {
-    LOG_INFO("TcpConnection::handleClose 客户端主动close，服务端收到fin，关闭链接，fd：%d 状态：%d\n", channel_->fd(), state_);
+    LOG_INFO("TcpConnection::handleClose 客户端主动close，服务端收到fin，关闭链接，fd：%d 状态：%d\n", channel_->fd(), state_.load());
     // 设置Tcp状态为关闭
     setState(StateE::kDisconnected);
     // 将该channel从epoll树上删除，channle还在poller的map上

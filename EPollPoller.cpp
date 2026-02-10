@@ -89,7 +89,6 @@ void EPollPoller::updateChannel(Channel* channel)
     else
     // channel在epoll树上，对epoll树上的channel进行操作
     {
-        int fd = channel->fd();
         // channel不监听任何事件，将channel从epoll树上删除
         if (channel->isNoneEvent())
         {
